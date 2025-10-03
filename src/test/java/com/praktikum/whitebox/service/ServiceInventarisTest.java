@@ -31,6 +31,14 @@ public class ServiceInventarisTest {
         produkTest = new Produk("PROD001", "Laptop Gaming", "Elektronik",
                 15000000, 10, 5);
     }
+    //test setting kategori method
+    @Test
+    @DisplayName("Test setKategori method")
+    void testSetKategori() {
+        Produk p = new Produk("P001", "Laptop", 10);
+        p.setKategori("Elektronik"); // <-- eksekusi setter
+        assertEquals("Elektronik", p.getKategori());
+    }
 
     @Test
     @DisplayName("Tambah produk berhasil - semua kondisi valid")
@@ -280,9 +288,6 @@ void testKeluarStok_KodeTidakValid() {
             verifyNoInteractions(mockRepositoryProduk);
         }
     }
-
-
-
 
     // cari produk dengan kode
     @Test
