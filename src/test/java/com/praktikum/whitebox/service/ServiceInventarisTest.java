@@ -49,6 +49,29 @@ public class ServiceInventarisTest {
         assertTrue(s.contains("Laptop"));
         assertTrue(s.contains("Elektronik"));
     }
+    //test equals produk
+    @Test
+    @DisplayName("Test equals Produk")
+    void testEquals() {
+        Produk p1 = new Produk("P001", "Laptop", 10);
+        Produk p2 = new Produk("P001", "Laptop", 5);
+        Produk p3 = new Produk("P002", "Mouse", 5);
+
+        // Sama object
+        assertTrue(p1.equals(p1));
+
+        // Object null
+        assertFalse(p1.equals(null));
+
+        // Object berbeda tipe
+        assertFalse(p1.equals("string"));
+
+        // Kode sama
+        assertTrue(p1.equals(p2));
+
+        // Kode berbeda
+        assertFalse(p1.equals(p3));
+    }
 
     @Test
     @DisplayName("Tambah produk berhasil - semua kondisi valid")
