@@ -1,11 +1,13 @@
 package com.praktikum.whitebox.service;
 import com.praktikum.whitebox.model.Produk;
 import com.praktikum.whitebox.repository.RepositoryProduk;
+import com.praktikum.whitebox.util.ValidationUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
@@ -125,7 +127,8 @@ public class ServiceInventarisTest {
         assertEquals("PROD002", hasil.get(0).getKode());
         verify(mockRepositoryProduk).cariProdukStokMenipis();
     }
-// tambah produk yang invalid dan harus false
+
+    // tambah produk yang invalid dan harus false
     @Test
     @DisplayName("Tambah produk invalid harus return false")
     void testTambahProdukInvalid() {
@@ -303,6 +306,7 @@ public class ServiceInventarisTest {
         assertEquals("Laptop", result.get(0).getNama());  // ✅ sekarang bukan null lagi
         verify(mockRepositoryProduk).cariByKategori("Elektronik");
     }
+
     @Test
     @DisplayName("cariProdukByKategori mengembalikan list kosong jika tidak ada data")
     void testCariProdukByKategori_TidakAdaData() {
@@ -316,5 +320,97 @@ public class ServiceInventarisTest {
         // Assert
         assertTrue(result.isEmpty());
         verify(mockRepositoryProduk).cariByKategori("Fashion");
+    }
+
+    // Update Stock
+    @Test
+    @DisplayName("updateStok return false kalau kode tidak valid")
+    void testUpdateStok_KodeTidakValid() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "INVALID";
+            int stokBaru = 10;
+
+            // Mock validasi gagal
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(false);
+
+            boolean result = serviceInventaris.updateStok(kode, stokBaru);
+
+            assertFalse(result);
+            verifyNoInteractions(mockRepositoryProduk);
+        }
+    }
+
+    @Test
+    @DisplayName("updateStok return false kalau stok negatif")
+    void testUpdateStok_StokNegatif() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "P001";
+            int stokBaru = -5;
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+
+            boolean result = serviceInventaris.updateStok(kode, stokBaru);
+
+            assertFalse(result);
+            verifyNoInteractions(mockRepositoryProduk);
+        }
+    }
+
+    @Test
+    @DisplayName("updateStok return false kalau produk tidak ditemukan")
+    void testUpdateStok_ProdukTidakDitemukan() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "P001";
+            int stokBaru = 10;
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.empty());
+
+            boolean result = serviceInventaris.updateStok(kode, stokBaru);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, never()).updateStok(anyString(), anyInt());
+        }
+    }
+
+    @Test
+    @DisplayName("updateStok return true kalau produk ditemukan dan update sukses")
+    void testUpdateStok_Sukses() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "P001";
+            int stokBaru = 20;
+            Produk produk = new Produk(kode, "Laptop", "Elektronik", 5000.0, 10, 2);
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.of(produk));
+            when(mockRepositoryProduk.updateStok(eq(kode), eq(stokBaru))).thenReturn(true);
+
+            boolean result = serviceInventaris.updateStok(kode, stokBaru);
+
+            assertTrue(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, times(1)).updateStok(kode, stokBaru);
+        }
+    }
+
+    @Test
+    @DisplayName("updateStok return false kalau produk ditemukan tapi update gagal")
+    void testUpdateStok_UpdateGagal() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "P001";
+            int stokBaru = 20;
+            Produk produk = new Produk(kode, "Laptop", "Elektronik", 5000.0, 10, 2);
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.of(produk));
+            when(mockRepositoryProduk.updateStok(eq(kode), eq(stokBaru))).thenReturn(false);
+
+            boolean result = serviceInventaris.updateStok(kode, stokBaru);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, times(1)).updateStok(kode, stokBaru);
+        }
     }
 }
