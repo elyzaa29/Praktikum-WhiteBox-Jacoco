@@ -58,34 +58,105 @@ public class ServiceInventarisTest {
         verify(mockRepositoryProduk).cariByKode("PROD001");
         verify(mockRepositoryProduk, never()).simpan(any(Produk.class));
     }
+// Keluar stokc
+@Test
+@DisplayName("keluarStok return false kalau kode tidak valid")
+void testKeluarStok_KodeTidakValid() {
+    try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+        mocked.when(() -> ValidationUtils.isValidKodeProduk("XXX")).thenReturn(false);
+
+        boolean result = serviceInventaris.keluarStok("XXX", 5);
+
+        assertFalse(result);
+        verify(mockRepositoryProduk, never()).cariByKode(anyString());
+    }
+}
 
     @Test
-    @DisplayName("Keluar stok berhasil - stok mencukupi")
-    void testKeluarStokBerhasil() {
-// Arrange
-        when(mockRepositoryProduk.cariByKode("PROD001")).thenReturn(Optional.of(produkTest));
-        when(mockRepositoryProduk.updateStok("PROD001",
-                5)).thenReturn(true);
-// Act
-        boolean hasil = serviceInventaris.keluarStok("PROD001", 5);
-// Assert
-        assertTrue(hasil);
-        verify(mockRepositoryProduk).updateStok("PROD001", 5);
+    @DisplayName("keluarStok return false kalau jumlah <= 0")
+    void testKeluarStok_JumlahTidakValid() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            mocked.when(() -> ValidationUtils.isValidKodeProduk("P001")).thenReturn(true);
+
+            boolean result = serviceInventaris.keluarStok("P001", 0);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, never()).cariByKode(anyString());
+        }
     }
 
     @Test
-    @DisplayName("Keluar stok gagal - stok tidak mencukupi")
-    void testKeluarStokGagalStokTidakMencukupi() {
-// Arrange
-        when(mockRepositoryProduk.cariByKode("PROD001")).thenReturn(Optional.of(produkTest));
-// Act
-        boolean hasil = serviceInventaris.keluarStok("PROD001", 15);
-// Assert
-        assertFalse(hasil);
-        verify(mockRepositoryProduk, never()).updateStok(anyString(),
-                anyInt());
+    @DisplayName("keluarStok return false kalau produk tidak ditemukan")
+    void testKeluarStok_ProdukTidakAda() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            mocked.when(() -> ValidationUtils.isValidKodeProduk("P001")).thenReturn(true);
+
+            when(mockRepositoryProduk.cariByKode("P001")).thenReturn(Optional.empty());
+
+            boolean result = serviceInventaris.keluarStok("P001", 3);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode("P001");
+        }
     }
 
+    @Test
+    @DisplayName("keluarStok return false kalau produk tidak aktif")
+    void testKeluarStok_ProdukTidakAktif() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            mocked.when(() -> ValidationUtils.isValidKodeProduk("P001")).thenReturn(true);
+
+            Produk produk = new Produk("P001", "Laptop", "Elektronik", 5000.0, 10, 1);
+            produk.setAktif(false);
+
+            when(mockRepositoryProduk.cariByKode("P001")).thenReturn(Optional.of(produk));
+
+            boolean result = serviceInventaris.keluarStok("P001", 3);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode("P001");
+            verify(mockRepositoryProduk, never()).updateStok(anyString(), anyInt());
+        }
+    }
+
+    @Test
+    @DisplayName("keluarStok return true kalau stok cukup dan update sukses")
+    void testKeluarStok_Sukses() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            mocked.when(() -> ValidationUtils.isValidKodeProduk("P001")).thenReturn(true);
+
+            Produk produk = new Produk("P001", "Laptop", "Elektronik", 5000.0, 10, 1);
+            produk.setAktif(true);
+
+            when(mockRepositoryProduk.cariByKode("P001")).thenReturn(Optional.of(produk));
+            when(mockRepositoryProduk.updateStok("P001", 7)).thenReturn(true); // 10 - 3 = 7
+
+            boolean result = serviceInventaris.keluarStok("P001", 3);
+
+            assertTrue(result);
+            verify(mockRepositoryProduk).updateStok("P001", 7);
+        }
+    }
+
+    @Test
+    @DisplayName("keluarStok return false kalau jumlah melebihi stok")
+    void testKeluarStok_JumlahLebihDariStok() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            mocked.when(() -> ValidationUtils.isValidKodeProduk("P001")).thenReturn(true);
+
+            Produk produk = new Produk("P001", "Laptop", "Elektronik", 5000.0, 5, 1);
+            produk.setAktif(true);
+
+            when(mockRepositoryProduk.cariByKode("P001")).thenReturn(Optional.of(produk));
+
+            boolean result = serviceInventaris.keluarStok("P001", 10);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, never()).updateStok(anyString(), anyInt());
+        }
+    }
+
+// hitung total nilai inventaris
     @Test
     @DisplayName("Hitung total nilai inventaris")
     void testHitungTotalNilaiInventaris() {
@@ -563,6 +634,44 @@ public class ServiceInventarisTest {
 
         assertEquals(0, totalStok);
         verify(mockRepositoryProduk, times(1)).cariSemua();
+    }
+    // getProdukStockHabis
+    @Test
+    @DisplayName("getProdukStokHabis return daftar produk dengan stok habis")
+    void testGetProdukStokHabis_AdaData() {
+        Produk p1 = new Produk("P001", "Laptop", "Elektronik", 5000.0, 0, 1);
+        p1.setAktif(true);
+
+        Produk p2 = new Produk("P002", "Mouse", "Elektronik", 200.0, 0, 1);
+        p2.setAktif(true);
+
+        List<Produk> habisList = Arrays.asList(p1, p2);
+
+        // Mock repository
+        when(mockRepositoryProduk.cariProdukStokHabis()).thenReturn(habisList);
+
+        // Act
+        List<Produk> result = serviceInventaris.getProdukStokHabis();
+
+        // Assert
+        assertEquals(2, result.size());
+        assertEquals("Laptop", result.get(0).getNama());
+        assertEquals(0, result.get(0).getStok());
+        verify(mockRepositoryProduk, times(1)).cariProdukStokHabis();
+    }
+
+    @Test
+    @DisplayName("getProdukStokHabis return list kosong kalau tidak ada produk habis")
+    void testGetProdukStokHabis_TidakAdaData() {
+        // Mock repository return empty
+        when(mockRepositoryProduk.cariProdukStokHabis()).thenReturn(Collections.emptyList());
+
+        // Act
+        List<Produk> result = serviceInventaris.getProdukStokHabis();
+
+        // Assert
+        assertTrue(result.isEmpty());
+        verify(mockRepositoryProduk, times(1)).cariProdukStokHabis();
     }
 
 }
