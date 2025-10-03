@@ -7,13 +7,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+
+import java.util.*;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Test Service Inventaris dengan Mocking")
@@ -22,12 +22,14 @@ public class ServiceInventarisTest {
     private RepositoryProduk mockRepositoryProduk;
     private ServiceInventaris serviceInventaris;
     private Produk produkTest;
+
     @BeforeEach
     void setUp() {
         serviceInventaris = new ServiceInventaris(mockRepositoryProduk);
         produkTest = new Produk("PROD001", "Laptop Gaming", "Elektronik",
                 15000000, 10, 5);
     }
+
     @Test
     @DisplayName("Tambah produk berhasil - semua kondisi valid")
     void testTambahProdukBerhasil() {
@@ -41,6 +43,7 @@ public class ServiceInventarisTest {
         verify(mockRepositoryProduk).cariByKode("PROD001");
         verify(mockRepositoryProduk).simpan(produkTest);
     }
+
     @Test
     @DisplayName("Tambah produk gagal - produk sudah ada")
     void testTambahProdukGagalSudahAda() {
@@ -53,6 +56,7 @@ public class ServiceInventarisTest {
         verify(mockRepositoryProduk).cariByKode("PROD001");
         verify(mockRepositoryProduk, never()).simpan(any(Produk.class));
     }
+
     @Test
     @DisplayName("Keluar stok berhasil - stok mencukupi")
     void testKeluarStokBerhasil() {
@@ -66,6 +70,7 @@ public class ServiceInventarisTest {
         assertTrue(hasil);
         verify(mockRepositoryProduk).updateStok("PROD001", 5);
     }
+
     @Test
     @DisplayName("Keluar stok gagal - stok tidak mencukupi")
     void testKeluarStokGagalStokTidakMencukupi() {
@@ -78,6 +83,7 @@ public class ServiceInventarisTest {
         verify(mockRepositoryProduk, never()).updateStok(anyString(),
                 anyInt());
     }
+
     @Test
     @DisplayName("Hitung total nilai inventaris")
     void testHitungTotalNilaiInventaris() {
@@ -100,6 +106,7 @@ public class ServiceInventarisTest {
         assertEquals(expected, totalNilai, 0.001);
         verify(mockRepositoryProduk).cariSemua();
     }
+
     @Test
     @DisplayName("Get produk stok menipis")
     void testGetProdukStokMenipis() {
@@ -117,5 +124,197 @@ public class ServiceInventarisTest {
         assertEquals(1, hasil.size());
         assertEquals("PROD002", hasil.get(0).getKode());
         verify(mockRepositoryProduk).cariProdukStokMenipis();
+    }
+// tambah produk yang invalid dan harus false
+    @Test
+    @DisplayName("Tambah produk invalid harus return false")
+    void testTambahProdukInvalid() {
+        Produk produkInvalid = new Produk("", "Elektronik", -1000);
+        // Nama kosong, harga minus = dianggap invalid
+
+        boolean hasil = serviceInventaris.tambahProduk(produkInvalid);
+
+        assertFalse(hasil, "Produk tidak valid harus return false");
+    }
+
+    // hapus produk dengan kode yang ngga valid
+    @Test
+    @DisplayName("Hapus produk gagal - kode produk tidak valid")
+    void testHapusProdukKodeTidakValid() {
+        // Arrange
+        String kodeTidakValid = ""; // misalnya kode kosong dianggap tidak valid
+
+        // Act
+        boolean hasil = serviceInventaris.hapusProduk(kodeTidakValid);
+
+        // Assert
+        assertFalse(hasil); // seharusnya return false
+        verify(mockRepositoryProduk, never()).hapusProduk(anyString());
+    }
+
+    @Test
+    @DisplayName("Hapus produk gagal jika produk tidak ditemukan")
+    void testHapusProdukProdukTidakDitemukan() {
+        // Arrange
+        String kodeProduk = "PROD999"; // kode produk yang tidak ada
+        when(mockRepositoryProduk.cariByKode(kodeProduk)).thenReturn(Optional.empty());
+
+        // Act
+        boolean hasil = serviceInventaris.hapusProduk(kodeProduk);
+
+        // Assert
+        assertFalse(hasil); // seharusnya false
+        verify(mockRepositoryProduk).cariByKode(kodeProduk); // dipanggil sekali
+        verify(mockRepositoryProduk, never()).hapusProduk(anyString()); // tidak lanjut hapus
+    }
+
+    // hapus produk stok berhasil
+    @Test
+    @DisplayName("Hapus produk berhasil jika stok habis")
+    void testHapusProdukBerhasilStokHabis() {
+        // Arrange
+        String kodeProduk = "PROD004";
+        Produk produkStokHabis = new Produk(
+                "PROD004",
+                "Flashdisk",
+                "Elektronik",
+                100000,
+                0,   // stok 0 → boleh dihapus
+                1
+        );
+
+        // repository menemukan produk dengan stok 0
+        when(mockRepositoryProduk.cariByKode(kodeProduk))
+                .thenReturn(Optional.of(produkStokHabis));
+        // repository hapus berhasil
+        when(mockRepositoryProduk.hapus(kodeProduk)).thenReturn(true);
+
+        // Act
+        boolean hasil = serviceInventaris.hapusProduk(kodeProduk);
+
+        // Assert
+        assertTrue(hasil); // seharusnya true
+        verify(mockRepositoryProduk).cariByKode(kodeProduk);
+        verify(mockRepositoryProduk).hapus(kodeProduk); // pastikan hapus dipanggil
+    }
+
+    // cari produk dengan kode
+    @Test
+    @DisplayName("cariProdukByKode return Optional.empty kalau kode tidak valid")
+    void testCariProdukByKode_KodeTidakValid() {
+        Optional<Produk> result = serviceInventaris.cariProdukByKode("");
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(mockRepositoryProduk);
+    }
+
+    @Test
+    @DisplayName("cariProdukByKode berhasil kalau kode valid")
+    void testCariProdukByKode_KodeValid() {
+        String kodeValid = "PRD001";
+        Produk produk = new Produk("PRD001", "Laptop", "Elektronik", 5000000, 5, 2);
+
+        when(mockRepositoryProduk.cariByKode(kodeValid))
+                .thenReturn(Optional.of(produk));
+
+        Optional<Produk> result = serviceInventaris.cariProdukByKode(kodeValid);
+
+        assertTrue(result.isPresent());
+        assertEquals("Laptop", result.get().getNama());
+        verify(mockRepositoryProduk, times(1)).cariByKode(kodeValid);
+    }
+
+    // Cari Produk By Nama
+    @Test
+    @DisplayName("cariProdukByNama return empty list kalau nama kosong atau null")
+    void testCariProdukByNama_NamaKosong() {
+        // Kasus nama kosong
+        String nama = "";
+        List<Produk> result = serviceInventaris.cariProdukByNama(nama);
+        assertTrue(result.isEmpty());
+
+        // Kasus nama null
+        nama = null;
+        result = serviceInventaris.cariProdukByNama(nama);
+        assertTrue(result.isEmpty());
+
+        // Pastikan repository tidak dipanggil sama sekali
+        verifyNoInteractions(mockRepositoryProduk);
+    }
+
+    @Test
+    @DisplayName("cariProdukByNama berhasil kalau nama valid")
+    void testCariProdukByNama_NamaValid() {
+        String nama = "Laptop";
+
+        // Buat list mock dengan objek Produk yang benar-benar memiliki nama
+        List<Produk> mockList = new ArrayList<>();
+        Produk p = new Produk("P001", "Laptop", 5000);
+        p.setKode("P001");
+        p.setNama("Laptop"); // wajib set nama supaya getNama() tidak null
+        p.setHarga(5000);
+        mockList.add(p);
+
+        // Mock behavior repository
+        when(mockRepositoryProduk.cariByNama(nama)).thenReturn(mockList);
+
+        // Panggil method service
+        List<Produk> result = serviceInventaris.cariProdukByNama(nama);
+
+        // Assertions
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
+        assertEquals("Laptop", result.get(0).getNama());
+
+        // Pastikan repository dipanggil sekali
+        verify(mockRepositoryProduk, times(1)).cariByNama(nama);
+    }
+
+    @Test
+    @DisplayName("cariProdukByNama return empty list kalau nama valid tapi tidak ditemukan")
+    void testCariProdukByNama_TidakDitemukan() {
+        String nama = "TidakAda";
+
+        // Mock behavior repository mengembalikan list kosong
+        when(mockRepositoryProduk.cariByNama(nama)).thenReturn(new ArrayList<>());
+
+        List<Produk> result = serviceInventaris.cariProdukByNama(nama);
+
+        assertTrue(result.isEmpty());
+        verify(mockRepositoryProduk, times(1)).cariByNama(nama);
+    }
+
+    // cari produk by kategori mengambilkan kategori sesuai produk
+    @Test
+    @DisplayName("cariProdukByKategori mengembalikan daftar produk sesuai kategori")
+    void testCariProdukByKategori_AdaData() {
+        // Arrange
+        Produk p1 = new Produk("P001", "Laptop", "Elektronik", 5000000, 10, 5);
+        Produk p2 = new Produk("P002", "Mouse", "Elektronik", 50000, 20, 5);
+        List<Produk> produkList = Arrays.asList(p1, p2);
+
+        when(mockRepositoryProduk.cariByKategori("Elektronik"))
+                .thenReturn(produkList);
+
+        // Act
+        List<Produk> result = serviceInventaris.cariProdukByKategori("Elektronik");
+
+        // Assert
+        assertEquals(2, result.size());
+        assertEquals("Laptop", result.get(0).getNama());  // ✅ sekarang bukan null lagi
+        verify(mockRepositoryProduk).cariByKategori("Elektronik");
+    }
+    @Test
+    @DisplayName("cariProdukByKategori mengembalikan list kosong jika tidak ada data")
+    void testCariProdukByKategori_TidakAdaData() {
+        // Arrange
+        when(mockRepositoryProduk.cariByKategori("Fashion"))
+                .thenReturn(Collections.emptyList());
+
+        // Act
+        List<Produk> result = serviceInventaris.cariProdukByKategori("Fashion");
+
+        // Assert
+        assertTrue(result.isEmpty());
+        verify(mockRepositoryProduk).cariByKategori("Fashion");
     }
 }
