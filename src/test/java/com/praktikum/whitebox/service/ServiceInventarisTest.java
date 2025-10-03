@@ -413,4 +413,105 @@ public class ServiceInventarisTest {
             verify(mockRepositoryProduk, times(1)).updateStok(kode, stokBaru);
         }
     }
+
+    // Masuk stok return false sana berhasil..
+    @Test
+    @DisplayName("masukStok return true kalau valid, produk aktif, dan update sukses")
+    void testMasukStok_Sukses() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            // Arrange
+            String kode = "PRD001";
+            int jumlah = 5;
+
+            // Mock validasi kode produk
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+
+            // Buat produk aktif dengan stok awal 10
+            Produk produk = new Produk("PRD001", "Produk A", "Elektronik", 1000.0, 10, 1);
+            produk.setAktif(true);
+
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.of(produk));
+            when(mockRepositoryProduk.updateStok(eq(kode), eq(15))).thenReturn(true);
+
+            // Act
+            boolean result = serviceInventaris.masukStok(kode, jumlah);
+
+            // Assert
+            assertTrue(result);
+            verify(mockRepositoryProduk, times(1)).updateStok(kode, 15);
+        }
+    }
+
+    @Test
+    @DisplayName("masukStok return false kalau kode produk tidak valid")
+    void testMasukStok_KodeTidakValid() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "INVALID";
+            int jumlah = 5;
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(false);
+
+            boolean result = serviceInventaris.masukStok(kode, jumlah);
+
+            assertFalse(result);
+            verifyNoInteractions(mockRepositoryProduk);
+        }
+    }
+
+    @Test
+    @DisplayName("masukStok return false kalau jumlah <= 0")
+    void testMasukStok_JumlahTidakValid() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "PRD001";
+            int jumlah = 0;
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+
+            boolean result = serviceInventaris.masukStok(kode, jumlah);
+
+            assertFalse(result);
+            verifyNoInteractions(mockRepositoryProduk);
+        }
+    }
+
+    @Test
+    @DisplayName("masukStok return false kalau produk tidak ditemukan")
+    void testMasukStok_ProdukTidakAda() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "PRD001";
+            int jumlah = 5;
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.empty());
+
+            boolean result = serviceInventaris.masukStok(kode, jumlah);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+        }
+    }
+
+    @Test
+    @DisplayName("masukStok return false kalau produk tidak aktif")
+    void testMasukStok_ProdukTidakAktif() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "PRD001";
+            int jumlah = 5;
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+
+            // Buat produk tapi set aktif = false
+            Produk produk = new Produk("PRD001", "Produk A", "Elektronik", 1000.0, 10, 1);
+            produk.setAktif(false);
+
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.of(produk));
+
+            boolean result = serviceInventaris.masukStok(kode, jumlah);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, never()).updateStok(anyString(), anyInt());
+        }
+    }
+
 }
