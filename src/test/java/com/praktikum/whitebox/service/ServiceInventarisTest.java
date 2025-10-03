@@ -39,6 +39,16 @@ public class ServiceInventarisTest {
         p.setKategori("Elektronik"); // <-- eksekusi setter
         assertEquals("Elektronik", p.getKategori());
     }
+    //toString Produk
+    @Test
+    @DisplayName("Test toString Produk")
+    void testToString() {
+        Produk p = new Produk("P001", "Laptop", "Elektronik", 1000, 5, 1);
+        String s = p.toString();
+        assertTrue(s.contains("P001"));
+        assertTrue(s.contains("Laptop"));
+        assertTrue(s.contains("Elektronik"));
+    }
 
     @Test
     @DisplayName("Tambah produk berhasil - semua kondisi valid")
