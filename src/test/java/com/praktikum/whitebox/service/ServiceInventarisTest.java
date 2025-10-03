@@ -513,5 +513,56 @@ public class ServiceInventarisTest {
             verify(mockRepositoryProduk, never()).updateStok(anyString(), anyInt());
         }
     }
+    // Ngitung Total Stock
+    @Test
+    @DisplayName("hitungTotalStok return jumlah stok semua produk aktif")
+    void testHitungTotalStok_AdaProdukAktif() {
+        // Arrange
+        Produk p1 = new Produk("P001", "Laptop", "Elektronik", 5000.0, 10, 1);
+        p1.setAktif(true);
+
+        Produk p2 = new Produk("P002", "Mouse", "Elektronik", 200.0, 5, 1);
+        p2.setAktif(true);
+
+        Produk p3 = new Produk("P003", "Keyboard", "Elektronik", 300.0, 7, 1);
+        p3.setAktif(false); // tidak dihitung
+
+        when(mockRepositoryProduk.cariSemua()).thenReturn(Arrays.asList(p1, p2, p3));
+
+        // Act
+        int totalStok = serviceInventaris.hitungTotalStok();
+
+        // Assert
+        assertEquals(15, totalStok); // 10 + 5
+        verify(mockRepositoryProduk, times(1)).cariSemua();
+    }
+
+    @Test
+    @DisplayName("hitungTotalStok return 0 kalau semua produk tidak aktif")
+    void testHitungTotalStok_SemuaTidakAktif() {
+        Produk p1 = new Produk("P001", "Laptop", "Elektronik", 5000.0, 10, 1);
+        p1.setAktif(false);
+
+        Produk p2 = new Produk("P002", "Mouse", "Elektronik", 200.0, 5, 1);
+        p2.setAktif(false);
+
+        when(mockRepositoryProduk.cariSemua()).thenReturn(Arrays.asList(p1, p2));
+
+        int totalStok = serviceInventaris.hitungTotalStok();
+
+        assertEquals(0, totalStok);
+        verify(mockRepositoryProduk, times(1)).cariSemua();
+    }
+
+    @Test
+    @DisplayName("hitungTotalStok return 0 kalau tidak ada produk")
+    void testHitungTotalStok_Kosong() {
+        when(mockRepositoryProduk.cariSemua()).thenReturn(Collections.emptyList());
+
+        int totalStok = serviceInventaris.hitungTotalStok();
+
+        assertEquals(0, totalStok);
+        verify(mockRepositoryProduk, times(1)).cariSemua();
+    }
 
 }
