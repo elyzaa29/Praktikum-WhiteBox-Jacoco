@@ -211,66 +211,78 @@ void testKeluarStok_KodeTidakValid() {
         assertFalse(hasil, "Produk tidak valid harus return false");
     }
 
-    // hapus produk dengan kode yang ngga valid
+    // hapus produk
     @Test
-    @DisplayName("Hapus produk gagal - kode produk tidak valid")
-    void testHapusProdukKodeTidakValid() {
-        // Arrange
-        String kodeTidakValid = ""; // misalnya kode kosong dianggap tidak valid
+    @DisplayName("hapusProduk return true kalau kode valid, produk ada, stok 0, dan berhasil dihapus")
+    void testHapusProduk_Sukses() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "PRD001";
+            Produk produk = new Produk("PRD001", "Produk A", "Elektronik", 10000.0, 0, 1); // stok 0
 
-        // Act
-        boolean hasil = serviceInventaris.hapusProduk(kodeTidakValid);
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.of(produk));
+            when(mockRepositoryProduk.hapus(kode)).thenReturn(true);
 
-        // Assert
-        assertFalse(hasil); // seharusnya return false
-        verify(mockRepositoryProduk, never()).hapusProduk(anyString());
+            boolean result = serviceInventaris.hapusProduk(kode);
+
+            assertTrue(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, times(1)).hapus(kode);
+        }
     }
 
     @Test
-    @DisplayName("Hapus produk gagal jika produk tidak ditemukan")
-    void testHapusProdukProdukTidakDitemukan() {
-        // Arrange
-        String kodeProduk = "PROD999"; // kode produk yang tidak ada
-        when(mockRepositoryProduk.cariByKode(kodeProduk)).thenReturn(Optional.empty());
+    @DisplayName("hapusProduk return false kalau stok produk masih > 0")
+    void testHapusProduk_GagalKarenaStokMasihAda() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "PRD002";
+            Produk produk = new Produk("PRD002", "Produk B", "Elektronik", 15000.0, 10, 1); // stok 10
 
-        // Act
-        boolean hasil = serviceInventaris.hapusProduk(kodeProduk);
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.of(produk));
 
-        // Assert
-        assertFalse(hasil); // seharusnya false
-        verify(mockRepositoryProduk).cariByKode(kodeProduk); // dipanggil sekali
-        verify(mockRepositoryProduk, never()).hapusProduk(anyString()); // tidak lanjut hapus
+            boolean result = serviceInventaris.hapusProduk(kode);
+
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, never()).hapus(anyString());
+        }
     }
 
-    // hapus produk stok berhasil
     @Test
-    @DisplayName("Hapus produk berhasil jika stok habis")
-    void testHapusProdukBerhasilStokHabis() {
-        // Arrange
-        String kodeProduk = "PROD004";
-        Produk produkStokHabis = new Produk(
-                "PROD004",
-                "Flashdisk",
-                "Elektronik",
-                100000,
-                0,   // stok 0 → boleh dihapus
-                1
-        );
+    @DisplayName("hapusProduk return false kalau produk tidak ditemukan")
+    void testHapusProduk_GagalKarenaProdukTidakAda() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "PRD003";
 
-        // repository menemukan produk dengan stok 0
-        when(mockRepositoryProduk.cariByKode(kodeProduk))
-                .thenReturn(Optional.of(produkStokHabis));
-        // repository hapus berhasil
-        when(mockRepositoryProduk.hapus(kodeProduk)).thenReturn(true);
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(true);
+            when(mockRepositoryProduk.cariByKode(kode)).thenReturn(Optional.empty());
 
-        // Act
-        boolean hasil = serviceInventaris.hapusProduk(kodeProduk);
+            boolean result = serviceInventaris.hapusProduk(kode);
 
-        // Assert
-        assertTrue(hasil); // seharusnya true
-        verify(mockRepositoryProduk).cariByKode(kodeProduk);
-        verify(mockRepositoryProduk).hapus(kodeProduk); // pastikan hapus dipanggil
+            assertFalse(result);
+            verify(mockRepositoryProduk, times(1)).cariByKode(kode);
+            verify(mockRepositoryProduk, never()).hapus(anyString());
+        }
     }
+
+    @Test
+    @DisplayName("hapusProduk return false kalau kode tidak valid")
+    void testHapusProduk_GagalKarenaKodeTidakValid() {
+        try (MockedStatic<ValidationUtils> mocked = mockStatic(ValidationUtils.class)) {
+            String kode = "";
+
+            mocked.when(() -> ValidationUtils.isValidKodeProduk(kode)).thenReturn(false);
+
+            boolean result = serviceInventaris.hapusProduk(kode);
+
+            assertFalse(result);
+            verifyNoInteractions(mockRepositoryProduk);
+        }
+    }
+
+
+
 
     // cari produk dengan kode
     @Test
