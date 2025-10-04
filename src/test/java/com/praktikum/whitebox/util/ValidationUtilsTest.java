@@ -94,24 +94,60 @@ class ValidationUtilsTest {
 
     // ======= isValidProduk =======
     @Test
-    @DisplayName("Valid produk")
-    void testIsValidProduk() {
+    @DisplayName("Valid produk - semua field benar")
+    void testIsValidProduk_Valid() {
         Produk p = new Produk("P001", "Produk A", "Kategori A", 100.0, 10, 5);
         assertTrue(ValidationUtils.isValidProduk(p));
     }
 
     @Test
-    @DisplayName("Invalid produk")
-    void testIsValidProduk_Invalid() {
-        Produk p1 = new Produk(null, "Produk A", "Kategori A", 100.0, 10, 5);
-        Produk p2 = new Produk("P001", "", "Kategori A", 100.0, 10, 5);
-        Produk p3 = new Produk("P001", "Produk A", "", -100.0, -1, -2);
-
+    @DisplayName("Produk null")
+    void testIsValidProduk_NullProduk() {
         assertFalse(ValidationUtils.isValidProduk(null));
-        assertFalse(ValidationUtils.isValidProduk(p1));
-        assertFalse(ValidationUtils.isValidProduk(p2));
-        assertFalse(ValidationUtils.isValidProduk(p3));
     }
+
+    @Test
+    @DisplayName("Kode produk null")
+    void testIsValidProduk_NullKode() {
+        Produk p = new Produk(null, "Produk A", "Kategori A", 100.0, 10, 5);
+        assertFalse(ValidationUtils.isValidProduk(p));
+    }
+
+    @Test
+    @DisplayName("Nama produk kosong")
+    void testIsValidProduk_EmptyNama() {
+        Produk p = new Produk("P001", "", "Kategori A", 100.0, 10, 5);
+        assertFalse(ValidationUtils.isValidProduk(p));
+    }
+
+    @Test
+    @DisplayName("Kategori kosong")
+    void testIsValidProduk_EmptyKategori() {
+        Produk p = new Produk("P001", "Produk A", "", 100.0, 10, 5);
+        assertFalse(ValidationUtils.isValidProduk(p));
+    }
+
+    @Test
+    @DisplayName("Harga negatif")
+    void testIsValidProduk_HargaNegatif() {
+        Produk p = new Produk("P001", "Produk A", "Kategori A", -100.0, 10, 5);
+        assertFalse(ValidationUtils.isValidProduk(p));
+    }
+
+    @Test
+    @DisplayName("Stok negatif")
+    void testIsValidProduk_StokNegatif() {
+        Produk p = new Produk("P001", "Produk A", "Kategori A", 100.0, -1, 5);
+        assertFalse(ValidationUtils.isValidProduk(p));
+    }
+
+    @Test
+    @DisplayName("Stok minimum negatif")
+    void testIsValidProduk_StokMinimumNegatif() {
+        Produk p = new Produk("P001", "Produk A", "Kategori A", 100.0, 10, -2);
+        assertFalse(ValidationUtils.isValidProduk(p));
+    }
+
 
     // ======= isValidKategori =======
     @Test
