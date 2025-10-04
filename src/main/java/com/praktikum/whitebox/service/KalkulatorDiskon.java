@@ -21,9 +21,9 @@ public class KalkulatorDiskon {
             diskon += 0.10; // 10% tambahan
         } else if ("REGULER".equalsIgnoreCase(tipePelanggan)) {
             diskon += 0.05; // 5% tambahan
-        } else if ("BARU".equalsIgnoreCase(tipePelanggan)) {
-            diskon += 0.02; // 2% tambahan
-        }
+        } else {diskon += 0.02; // 2% tambahan
+    }
+
 // Maksimal diskon 30%
         diskon = Math.min(diskon, 0.30);
         return harga * kuantitas * diskon;
