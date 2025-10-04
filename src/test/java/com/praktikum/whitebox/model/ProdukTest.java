@@ -129,4 +129,46 @@ public class ProdukTest {
         assertNotEquals(produk1, produk3); // kode berbeda
         assertEquals(produk1.hashCode(), produk2.hashCode());
     }
+    //test setting kategori method
+    @Test
+    @DisplayName("Test setKategori method")
+    void testSetKategori() {
+        Produk p = new Produk("P001", "Laptop", 10);
+        p.setKategori("Elektronik"); // <-- eksekusi setter
+        assertEquals("Elektronik", p.getKategori());
+    }
+    //toString Produk
+    @Test
+    @DisplayName("Test toString Produk")
+    void testToString() {
+        Produk p = new Produk("P001", "Laptop", "Elektronik", 1000, 5, 1);
+        String s = p.toString();
+        assertTrue(s.contains("P001"));
+        assertTrue(s.contains("Laptop"));
+        assertTrue(s.contains("Elektronik"));
+    }
+    //test equals produk
+    @Test
+    @DisplayName("Test equals Produk")
+    void testEquals() {
+        Produk p1 = new Produk("P001", "Laptop", 10);
+        Produk p2 = new Produk("P001", "Laptop", 5);
+        Produk p3 = new Produk("P002", "Mouse", 5);
+
+        // Sama object
+        assertTrue(p1.equals(p1));
+
+        // Object null
+        assertFalse(p1.equals(null));
+
+        // Object berbeda tipe
+        assertFalse(p1.equals("string"));
+
+        // Kode sama
+        assertTrue(p1.equals(p2));
+
+        // Kode berbeda
+        assertFalse(p1.equals(p3));
+    }
+
 }
